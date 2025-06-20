@@ -1,4 +1,3 @@
-
 import { db, ref, set, storage, storageRef, uploadBytesResumable, getDownloadURL } from './firebase.js';
 
 // DOM elements
@@ -59,6 +58,33 @@ screenshotsUpload.addEventListener('change', function(e) {
     }
 });
 
+// Helper function to upload files with progress tracking
+function uploadFile(storageRef, file) {
+    return new Promise((resolve, reject) => {
+        const uploadTask = uploadBytesResumable(storageRef, file);
+        
+        uploadTask.on('state_changed',
+            (snapshot) => {
+                // Update progress
+                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                uploadProgressBar.style.width = `${progress}%`;
+                uploadProgressPercent.textContent = Math.floor(progress);
+                
+                // Make sure progress is visible
+                uploadProgress.style.display = 'flex';
+            },
+            (error) => {
+                console.error('Upload error:', error);
+                uploadProgress.style.display = 'none';
+                reject(error);
+            },
+            () => {
+                resolve(uploadTask.snapshot);
+            }
+        );
+    });
+}
+
 // Handle form submission
 uploadForm.addEventListener('submit', async function(e) {
     e.preventDefault();
@@ -74,17 +100,29 @@ uploadForm.addEventListener('submit', async function(e) {
     const newRelease = document.getElementById('new-release').checked;
     const appFile = document.getElementById('app-file').files[0];
     
-    // Validate required files
-    if (!iconUpload.files[0] || !appFile) {
-        alert('Please select both an icon and an app file');
+    // Validate required fields and files
+    if (!appName || !developer || !description || !version || !requirements || !category) {
+        alert('Please fill all required fields');
         return;
     }
     
-    // Show upload progress
-    uploadingAppName.textContent = appName;
-    uploadProgress.style.display = 'flex';
+    if (!iconUpload.files[0]) {
+        alert('Please select an app icon');
+        return;
+    }
+    
+    if (!appFile) {
+        alert('Please select an app file (APK)');
+        return;
+    }
     
     try {
+        // Show upload progress
+        uploadingAppName.textContent = appName;
+        uploadProgress.style.display = 'flex';
+        uploadProgressBar.style.width = '0%';
+        uploadProgressPercent.textContent = '0';
+        
         // Generate unique ID for the app
         const appId = 'app-' + Date.now();
         
@@ -114,6 +152,9 @@ uploadForm.addEventListener('submit', async function(e) {
         const appSnapshot = await uploadFile(appRef, appFile);
         const appUrl = await getDownloadURL(appSnapshot.ref);
         
+        // Calculate file size in MB
+        const fileSizeMB = (appFile.size / (1024 * 1024)).toFixed(1);
+        
         // Save app data to database
         const appData = {
             id: appId,
@@ -130,7 +171,7 @@ uploadForm.addEventListener('submit', async function(e) {
             downloadUrl: appPath,
             rating: 0,
             downloads: "0",
-            size: (appFile.size / (1024 * 1024)).toFixed(1) + " MB",
+            size: `${fileSizeMB} MB`,
             updated: new Date().toISOString()
         };
         
@@ -138,9 +179,21 @@ uploadForm.addEventListener('submit', async function(e) {
         
         // Hide progress and show success
         uploadProgress.style.display = 'none';
-        alert('App uploaded successfully!');
+        
+        // Show success message
+        const successMsg = document.createElement('div');
+        successMsg.className = 'success-message';
+        successMsg.innerHTML = `
+            <i class="fas fa-check-circle"></i>
+            <p>App uploaded successfully!</p>
+            <button onclick="this.parentElement.remove()">OK</button>
+        `;
+        document.body.appendChild(successMsg);
+        
+        // Reset form (but keep screenshots if you want)
         uploadForm.reset();
         iconPreview.style.display = 'none';
+        iconPreview.src = '';
         iconPreview.parentElement.querySelector('i').style.display = 'block';
         iconPreview.parentElement.querySelector('span').style.display = 'block';
         screenshotsGrid.innerHTML = '';
@@ -148,28 +201,15 @@ uploadForm.addEventListener('submit', async function(e) {
     } catch (error) {
         console.error('Upload failed:', error);
         uploadProgress.style.display = 'none';
-        alert('Upload failed. Please try again.');
+        
+        // Show error message
+        const errorMsg = document.createElement('div');
+        errorMsg.className = 'error-message';
+        errorMsg.innerHTML = `
+            <i class="fas fa-exclamation-circle"></i>
+            <p>Upload failed: ${error.message}</p>
+            <button onclick="this.parentElement.remove()">OK</button>
+        `;
+        document.body.appendChild(errorMsg);
     }
 });
-
-// Helper function to upload files with progress tracking
-function uploadFile(storageRef, file) {
-    return new Promise((resolve, reject) => {
-        const uploadTask = uploadBytesResumable(storageRef, file);
-        
-        uploadTask.on('state_changed',
-            (snapshot) => {
-                // Update progress
-                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                uploadProgressBar.style.width = `${progress}%`;
-                uploadProgressPercent.textContent = Math.floor(progress);
-            },
-            (error) => {
-                reject(error);
-            },
-            () => {
-                resolve(uploadTask.snapshot);
-            }
-        );
-    });
-}
