@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download App</title>
+    <link rel="stylesheet" href="css/download.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <i class="fas fa-store"></i>
+            <h1>App Store</h1>
+        </div>
+        <nav>
+            <a href="index.html"><i class="fas fa-arrow-left"></i> Back to Store</a>
+        </nav>
+    </header>
+
+    <main>
+        <section class="app-details">
+            <div class="app-header">
+                <img id="app-icon" src="" alt="App Icon" class="app-icon">
+                <div class="app-title-section">
+                    <h1 id="app-name">App Name</h1>
+                    <p id="app-developer">Developer Name</p>
+                    <div class="app-rating">
+                        <i class="fas fa-star"></i>
+                        <span id="app-rating">4.5</span>
+                        <span id="app-downloads">(10M+ downloads)</span>
+                    </div>
+                </div>
+                <button id="download-btn" class="download-btn">
+                    <i class="fas fa-download"></i> Download
+                </button>
+            </div>
+
+            <div class="app-screenshots">
+                <h2>Screenshots</h2>
+                <div class="screenshot-container" id="screenshots">
+                    <!-- Screenshots will be loaded here -->
+                </div>
+            </div>
+
+            <div class="app-description">
+                <h2>Description</h2>
+                <p id="app-description">Loading description...</p>
+            </div>
+
+            <div class="app-info-table">
+                <h2>Additional Information</h2>
+                <table>
+                    <tr>
+                        <td>Version</td>
+                        <td id="app-version">1.0.0</td>
+                    </tr>
+                    <tr>
+                        <td>Size</td>
+                        <td id="app-size">25 MB</td>
+                    </tr>
+                    <tr>
+                        <td>Updated</td>
+                        <td id="app-updated">Jan 1, 2023</td>
+                    </tr>
+                    <tr>
+                        <td>Requirements</td>
+                        <td id="app-requirements">Android 8.0+</td>
+                    </tr>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2023 App Store. All rights reserved.</p>
+    </footer>
+
+    <div class="download-progress" id="download-progress">
+        <div class="progress-container">
+            <h3>Downloading <span id="downloading-app-name">App Name</span></h3>
+            <div class="progress-bar">
+                <div class="progress" id="progress"></div>
+            </div>
+            <p class="progress-text"><span id="progress-percent">0</span>% (<span id="progress-downloaded">0</span> MB of <span id="progress-total">0</span> MB)</p>
+        </div>
+    </div>
+
+    <script type="module" src="js/firebase.js"></script>
+    <script type="module" src="js/download.js"></script>
+</body>
+</html>
