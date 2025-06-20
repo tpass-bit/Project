@@ -272,6 +272,57 @@ main {
     font-size: 0.9rem;
 }
 
+/* Success and Error Messages */
+.success-message, .error-message {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    z-index: 1001;
+    max-width: 90%;
+    width: 400px;
+}
+
+.success-message {
+    border-top: 5px solid var(--secondary-color);
+}
+
+.error-message {
+    border-top: 5px solid var(--accent-color);
+}
+
+.success-message i {
+    color: var(--secondary-color);
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.error-message i {
+    color: var(--accent-color);
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.success-message p, .error-message p {
+    margin: 1rem 0;
+    font-size: 1.1rem;
+}
+
+.success-message button, .error-message button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 0.5rem 1.5rem;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 1rem;
+}
+
 @media (max-width: 768px) {
     header {
         flex-direction: column;
@@ -285,6 +336,20 @@ main {
     }
     
     .upload-form {
+        padding: 1.5rem;
+    }
+    
+    .icon-preview, .screenshots-preview {
+        width: 120px;
+        height: 120px;
+    }
+    
+    .screenshots-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    }
+    
+    .success-message, .error-message {
+        width: 90%;
         padding: 1.5rem;
     }
 }
