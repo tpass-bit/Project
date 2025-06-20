@@ -39,7 +39,7 @@
 
                 <div class="form-group">
                     <label for="app-version">Version</label>
-                    <input type="text" id="app-version" required>
+                    <input type="text" id="app-version" placeholder="e.g., 1.0.0" required>
                 </div>
 
                 <div class="form-group">
@@ -60,7 +60,7 @@
                 </div>
 
                 <div class="form-group">
-                    <label>App Icon</label>
+                    <label>App Icon (500x500 recommended)</label>
                     <div class="icon-upload">
                         <input type="file" id="app-icon" accept="image/*" required>
                         <label for="app-icon" class="icon-preview">
@@ -72,30 +72,30 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Screenshots</label>
+                    <label>Screenshots (16:9 ratio recommended)</label>
                     <div class="screenshots-upload">
                         <input type="file" id="app-screenshots" accept="image/*" multiple>
                         <label for="app-screenshots" class="screenshots-preview">
                             <i class="fas fa-plus"></i>
-                            <span>Add Screenshots</span>
+                            <span>Add Screenshots (3-5 recommended)</span>
                         </label>
                         <div class="screenshots-grid" id="screenshots-grid"></div>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label for="app-file">App File (APK)</label>
-                    <input type="file" id="app-file" accept=".apk" required>
+                    <label for="app-file">App File (APK, max 100MB)</label>
+                    <input type="file" id="app-file" accept=".apk,.xapk,.apks" required>
                 </div>
 
                 <div class="form-group checkbox-group">
                     <input type="checkbox" id="featured-app">
-                    <label for="featured-app">Featured App</label>
+                    <label for="featured-app">Featured App (shown on homepage)</label>
                 </div>
 
                 <div class="form-group checkbox-group">
                     <input type="checkbox" id="new-release">
-                    <label for="new-release">New Release</label>
+                    <label for="new-release">New Release (shown in New section)</label>
                 </div>
 
                 <button type="submit" class="submit-btn">
@@ -116,10 +116,246 @@
                 <div class="progress" id="upload-progress-bar"></div>
             </div>
             <p class="progress-text"><span id="upload-progress-percent">0</span>%</p>
+            <p class="progress-status" id="upload-status">Preparing files...</p>
         </div>
     </div>
 
-    <script type="module" src="js/firebase.js"></script>
-    <script type="module" src="js/upload.js"></script>
+    <script type="module">
+        import { db, ref, set, storage, storageRef, uploadBytesResumable, getDownloadURL } from './js/firebase.js';
+
+        // DOM elements
+        const uploadForm = document.getElementById('app-upload-form');
+        const iconPreview = document.getElementById('icon-preview');
+        const iconUpload = document.getElementById('app-icon');
+        const screenshotsUpload = document.getElementById('app-screenshots');
+        const screenshotsGrid = document.getElementById('screenshots-grid');
+        const uploadProgress = document.getElementById('upload-progress');
+        const uploadProgressBar = document.getElementById('upload-progress-bar');
+        const uploadProgressPercent = document.getElementById('upload-progress-percent');
+        const uploadingAppName = document.getElementById('uploading-app-name');
+        const uploadStatus = document.getElementById('upload-status');
+
+        // Preview icon when selected
+        iconUpload.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                if (file.size > 2 * 1024 * 1024) { // 2MB limit
+                    alert('Icon file size should be less than 2MB');
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    iconPreview.src = event.target.result;
+                    iconPreview.style.display = 'block';
+                    iconPreview.parentElement.querySelector('i').style.display = 'none';
+                    iconPreview.parentElement.querySelector('span').style.display = 'none';
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Preview screenshots when selected
+        screenshotsUpload.addEventListener('change', function(e) {
+            const files = e.target.files;
+            if (files && files.length > 0) {
+                screenshotsGrid.innerHTML = '';
+                
+                Array.from(files).forEach(file => {
+                    if (file.type.startsWith('image/')) {
+                        if (file.size > 5 * 1024 * 1024) { // 5MB limit per screenshot
+                            alert(`Screenshot ${file.name} is too large (max 5MB)`);
+                            return;
+                        }
+                        const reader = new FileReader();
+                        reader.onload = function(event) {
+                            const screenshotItem = document.createElement('div');
+                            screenshotItem.className = 'screenshot-item';
+                            
+                            screenshotItem.innerHTML = `
+                                <img src="${event.target.result}" alt="Screenshot">
+                                <div class="remove-screenshot">&times;</div>
+                            `;
+                            
+                            // Add remove functionality
+                            const removeBtn = screenshotItem.querySelector('.remove-screenshot');
+                            removeBtn.addEventListener('click', () => {
+                                screenshotItem.remove();
+                            });
+                            
+                            screenshotsGrid.appendChild(screenshotItem);
+                        }
+                        reader.readAsDataURL(file);
+                    }
+                });
+            }
+        });
+
+        // Helper function to upload files with progress tracking
+        function uploadFile(storageRef, file, fileType) {
+            return new Promise((resolve, reject) => {
+                uploadStatus.textContent = `Uploading ${fileType}...`;
+                const uploadTask = uploadBytesResumable(storageRef, file);
+                
+                uploadTask.on('state_changed',
+                    (snapshot) => {
+                        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                        uploadProgressBar.style.width = `${progress}%`;
+                        uploadProgressPercent.textContent = Math.floor(progress);
+                        uploadProgress.style.display = 'flex';
+                    },
+                    (error) => {
+                        console.error(`${fileType} upload error:`, error);
+                        uploadProgress.style.display = 'none';
+                        reject(error);
+                    },
+                    () => {
+                        resolve(uploadTask.snapshot);
+                    }
+                );
+            });
+        }
+
+        // Handle form submission
+        uploadForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Get form values
+            const appName = document.getElementById('app-name').value.trim();
+            const developer = document.getElementById('app-developer').value.trim();
+            const description = document.getElementById('app-description').value.trim();
+            const version = document.getElementById('app-version').value.trim();
+            const requirements = document.getElementById('app-requirements').value.trim();
+            const category = document.getElementById('app-category').value;
+            const featured = document.getElementById('featured-app').checked;
+            const newRelease = document.getElementById('new-release').checked;
+            const appFile = document.getElementById('app-file').files[0];
+            
+            // Validate required fields and files
+            if (!appName || !developer || !description || !version || !requirements || !category) {
+                showMessage('error', 'Please fill all required fields');
+                return;
+            }
+            
+            if (!iconUpload.files[0]) {
+                showMessage('error', 'Please select an app icon');
+                return;
+            }
+            
+            if (!appFile) {
+                showMessage('error', 'Please select an app file (APK)');
+                return;
+            }
+            
+            // Validate file sizes
+            if (appFile.size > 100 * 1024 * 1024) { // 100MB limit
+                showMessage('error', 'App file size should be less than 100MB');
+                return;
+            }
+            
+            try {
+                // Show upload progress
+                uploadingAppName.textContent = appName;
+                uploadProgress.style.display = 'flex';
+                uploadProgressBar.style.width = '0%';
+                uploadProgressPercent.textContent = '0';
+                uploadStatus.textContent = 'Starting upload...';
+                
+                // Generate unique ID for the app
+                const appId = 'app-' + Date.now();
+                
+                // Upload icon
+                uploadStatus.textContent = 'Uploading icon...';
+                const iconPath = `app-icons/${appId}`;
+                const iconRef = storageRef(storage, iconPath);
+                const iconSnapshot = await uploadFile(iconRef, iconUpload.files[0], 'icon');
+                const iconUrl = await getDownloadURL(iconSnapshot.ref);
+                
+                // Upload screenshots
+                uploadStatus.textContent = 'Uploading screenshots...';
+                const screenshotItems = screenshotsGrid.querySelectorAll('.screenshot-item');
+                const screenshotUrls = [];
+                
+                for (let i = 0; i < screenshotItems.length; i++) {
+                    const img = screenshotItems[i].querySelector('img');
+                    const blob = await fetch(img.src).then(res => res.blob());
+                    const screenshotPath = `app-screenshots/${appId}-${i}`;
+                    const screenshotRef = storageRef(storage, screenshotPath);
+                    const screenshotSnapshot = await uploadFile(screenshotRef, blob, `screenshot ${i+1}`);
+                    const screenshotUrl = await getDownloadURL(screenshotSnapshot.ref);
+                    screenshotUrls.push(screenshotUrl);
+                }
+                
+                // Upload APK file
+                uploadStatus.textContent = 'Uploading app file...';
+                const appPath = `apps/${appId}.${appFile.name.split('.').pop()}`;
+                const appRef = storageRef(storage, appPath);
+                const appSnapshot = await uploadFile(appRef, appFile, 'app file');
+                const appUrl = await getDownloadURL(appSnapshot.ref);
+                
+                // Calculate file size in MB
+                const fileSizeMB = (appFile.size / (1024 * 1024)).toFixed(1);
+                
+                // Save app data to database
+                uploadStatus.textContent = 'Saving app data...';
+                const appData = {
+                    id: appId,
+                    name: appName,
+                    developer: developer,
+                    description: description,
+                    version: version,
+                    requirements: requirements,
+                    category: category,
+                    featured: featured,
+                    newRelease: newRelease,
+                    icon: iconUrl,
+                    screenshots: screenshotUrls,
+                    downloadUrl: appPath,
+                    rating: 0,
+                    downloads: "0",
+                    size: `${fileSizeMB} MB`,
+                    updated: new Date().toISOString(),
+                    createdAt: new Date().toISOString()
+                };
+                
+                await set(ref(db, `apps/${appId}`), appData);
+                
+                // Hide progress and show success
+                uploadProgress.style.display = 'none';
+                showMessage('success', 'App uploaded successfully!');
+                
+                // Reset form
+                uploadForm.reset();
+                iconPreview.style.display = 'none';
+                iconPreview.src = '';
+                iconPreview.parentElement.querySelector('i').style.display = 'block';
+                iconPreview.parentElement.querySelector('span').style.display = 'block';
+                screenshotsGrid.innerHTML = '';
+                
+            } catch (error) {
+                console.error('Upload failed:', error);
+                uploadProgress.style.display = 'none';
+                showMessage('error', `Upload failed: ${error.message}`);
+            }
+        });
+
+        // Helper function to show messages
+        function showMessage(type, message) {
+            const msgElement = document.createElement('div');
+            msgElement.className = `${type}-message`;
+            msgElement.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check' : 'exclamation'}-circle"></i>
+                <p>${message}</p>
+                <button onclick="this.parentElement.remove()">OK</button>
+            `;
+            document.body.appendChild(msgElement);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (msgElement.parentNode) {
+                    msgElement.remove();
+                }
+            }, 5000);
+        }
+    </script>
 </body>
 </html>
