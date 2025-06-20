@@ -1,3 +1,4 @@
+
 import { db, ref, set, storage, storageRef, uploadBytesResumable, getDownloadURL } from './firebase.js';
 
 // DOM elements
