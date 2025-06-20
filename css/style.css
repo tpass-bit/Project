@@ -48,6 +48,26 @@ header {
     width: 40%;
 }
 
+.upload-btn {
+    background-color: var(--secondary-color);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    transition: background-color 0.3s;
+}
+
+.upload-btn:hover {
+    background-color: #2d9246;
+    color: white;
+}
+
+
+
 .search input {
     width: 100%;
     padding: 0.5rem 1rem;
